@@ -8,14 +8,19 @@ pub fn main() !void {
     const frames_per_second = 60;
     var frame_counter: u64 = 0;
 
-    const rect = rl.Rectangle{
+    const textbox_pos = rl.Vector2{
         .x = 10,
         .y = 10,
-        .width = 300,
+    };
+    const textbox_rect = rl.Rectangle{
+        .x = textbox_pos.x,
+        .y = textbox_pos.y,
+        .width = screen_width - textbox_pos.x * 2,
         .height = 50,
     };
-    var buffer: [64]u8 = undefined;
-    std.mem.copyForwards(u8, &buffer, "hello\x00");
+    var buffer: [256]u8 = undefined;
+    var sentinel_pos: usize = undefined;
+    std.mem.copyForwards(u8, &buffer, "Type here\x00");
 
     rl.setTraceLogLevel(.err);
     rl.initWindow(screen_width, screen_height, "Pratt Parsing");
@@ -26,9 +31,11 @@ pub fn main() !void {
         defer rl.endDrawing();
         rl.clearBackground(.white);
 
-        _ = rg.textBox(rect, @as([:0]u8, @ptrCast(&buffer)), buffer.len - 1, true);
+        _ = rg.textBox(textbox_rect, @as([:0]u8, @ptrCast(&buffer)), buffer.len - 1, true);
+        sentinel_pos = std.mem.indexOfSentinel(u8, 0, @as([:0]u8, @ptrCast(&buffer)));
+
         if (frame_counter % 60 == 0) {
-            std.debug.print("{s}\n", .{@as([*:0]u8, @ptrCast(&buffer))});
+            std.debug.print("{s}\n", .{buffer[0..sentinel_pos]});
         }
     }
 }
