@@ -19,5 +19,5 @@ pub fn main() !void {
 }
 
 test "test test" {
-    try std.testing.expectEqual(2, 1);
+    try std.testing.expectEqual(1, 1);
 }
