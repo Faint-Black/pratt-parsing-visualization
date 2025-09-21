@@ -1,0 +1,18 @@
+.{
+    .name = .pratt_parsing_visualization,
+    .version = "1.0.0",
+    .fingerprint = 0x7673c8378a9965e3,
+    .minimum_zig_version = "0.15.1",
+    .dependencies = .{
+        .raylib_zig = .{
+            .url = "git+https://github.com/raylib-zig/raylib-zig?ref=devel#d64fc43f38949231dc7d6f1c016db8fcae858b8c",
+            .hash = "raylib_zig-5.6.0-dev-KE8REDc2BQCri1t11guC1tZA-Luc7NuVeml_59LSELLe",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+    },
+}
