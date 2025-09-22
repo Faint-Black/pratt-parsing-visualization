@@ -35,7 +35,6 @@ pub fn main() !void {
         if (textbox_contents) |text| {
             var buffer: [2048]u8 = undefined;
             var writer = std.Io.Writer.fixed(&buffer);
-            std.debug.print("input text = {s}\n", .{text});
             const tokens = try lex(text, gpa);
             defer gpa.free(tokens);
             defer for (tokens) |tok| tok.deinit(gpa);
@@ -45,7 +44,7 @@ pub fn main() !void {
     }
 }
 
-test "tests index" {
+test "test index" {
     _ = @import("lexer.zig");
     _ = @import("token.zig");
 }

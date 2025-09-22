@@ -14,6 +14,16 @@ pub const Token = struct {
         assignment,
         sum,
         multiplication,
+
+        pub fn bindingPower(self: TokenType) i32 {
+            return switch (self) {
+                .end_of_line => -1,
+                .assignment => 1,
+                .sum => 2,
+                .multiplication => 3,
+                else => 0,
+            };
+        }
     };
 
     pub fn deinit(self: Token, allocator: std.mem.Allocator) void {
