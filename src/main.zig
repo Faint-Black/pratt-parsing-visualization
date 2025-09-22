@@ -9,6 +9,7 @@ pub fn main() !void {
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
     rl.setTargetFPS(render.frames_per_second);
+
     while (!rl.windowShouldClose()) : ({
         render.frame_counter += 1;
         render.screen_width = rl.getScreenWidth();
@@ -19,8 +20,6 @@ pub fn main() !void {
         rl.clearBackground(.white);
 
         const textbox_contents = render.updateTextBox();
-        if (render.frame_counter % render.frames_per_second == 0) {
-            std.debug.print("{s}\n", .{textbox_contents});
-        }
+        if (textbox_contents) |text| std.debug.print("{s}\n", .{text});
     }
 }
