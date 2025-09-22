@@ -2,7 +2,7 @@ const std = @import("std");
 const rl = @import("raylib");
 const rg = @import("raygui");
 
-pub var screen_width: i32 = 800;
+pub var screen_width: i32 = 400;
 pub var screen_height: i32 = 450;
 pub const frames_per_second = 60;
 pub var frame_counter: u64 = 0;
