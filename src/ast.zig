@@ -1,6 +1,26 @@
 const std = @import("std");
 const Token = @import("token.zig").Token;
 
+pub const ParsingState = struct {
+    tokens: []const Token,
+    counter: usize,
+    allocator: std.mem.Allocator,
+
+    pub fn consume(self: *ParsingState) Token {
+        const tmp = self.tokens[self.counter];
+        self.counter += 1;
+        return tmp;
+    }
+
+    pub fn peek(self: *ParsingState) Token {
+        return self.tokens[self.counter];
+    }
+
+    pub fn advance(self: *ParsingState) void {
+        self.counter += 1;
+    }
+};
+
 pub const AstNode = struct {
     token: Token,
     children: []AstNode,
@@ -12,17 +32,25 @@ pub const AstNode = struct {
         };
     }
 
-    /// recursive deinit, call for root only
+    /// recursive deinit, call for root only, it also frees tokens
     pub fn deinit(self: AstNode, allocator: std.mem.Allocator) void {
         for (self.children) |child| child.deinit(allocator);
         self.token.deinit(allocator);
         allocator.free(self.children);
     }
 
-    pub fn addChild(self: *AstNode, token: Token, allocator: std.mem.Allocator) !void {
+    pub fn addChildToken(self: *AstNode, token: Token, allocator: std.mem.Allocator) !void {
         var new_children_array = try allocator.alloc(AstNode, self.children.len + 1);
         for (0..self.children.len) |i| new_children_array[i] = self.children[i];
         new_children_array[self.children.len] = try AstNode.init(token, allocator);
+        allocator.free(self.children);
+        self.children = new_children_array;
+    }
+
+    pub fn addChildNode(self: *AstNode, node: AstNode, allocator: std.mem.Allocator) !void {
+        var new_children_array = try allocator.alloc(AstNode, self.children.len + 1);
+        for (0..self.children.len) |i| new_children_array[i] = self.children[i];
+        new_children_array[self.children.len] = node;
         allocator.free(self.children);
         self.children = new_children_array;
     }
@@ -44,25 +72,36 @@ pub const AstNode = struct {
     }
 };
 
-// pub fn parse(tokens: []Token) !AstNode {
-//     var index: usize = 0;
-// }
+pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
+    var current_token = parse_state.consume();
+    var left_node = try nud(parse_state, current_token);
+    while (rbp < parse_state.peek().token_type.bindingPower()) {
+        current_token = parse_state.consume();
+        if (current_token.token_type.associativity() == 'L') {
+            left_node = try led(parse_state, current_token, left_node);
+        }
+    }
+    return left_node;
+}
 
-// fn consume(tokens: []Token, index: *usize) Token {
-//     const tmp = tokens[index.*];
-//     index.* += 1;
-//     return tmp;
-// }
+fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
+    if (current.token_type == .l_paren) {
+        const tmp = try parseExpression(parse_state, 0);
+        parse_state.advance(); // skip closing paren
+        return tmp;
+    }
+    return try AstNode.init(current, parse_state.allocator);
+}
 
-// fn peek(tokens: []Token, index: *const usize) Token {
-//     return tokens[index.*];
-// }
+fn led(parse_state: *ParsingState, current: Token, left: AstNode) anyerror!AstNode {
+    var result_node = try AstNode.init(current, parse_state.allocator);
+    const right = try parseExpression(parse_state, current.token_type.bindingPower());
+    try result_node.addChildNode(left, parse_state.allocator);
+    try result_node.addChildNode(right, parse_state.allocator);
+    return result_node;
+}
 
-// fn nud(tokens: []Token, index: *usize) AstNode {}
-
-// fn led(tokens: []Token, index: *usize) AstNode {}
-
-// fn red(tokens: []Token, index: *usize) AstNode {}
+// fn red(parse_state: *ParsingState, current: Token, left: Token) Token {}
 
 test "AST printing" {
     var buffer: [512]u8 = undefined;
@@ -71,8 +110,31 @@ test "AST printing" {
 
     var root_node = try AstNode.init(.initSpecial(.assignment), allocator);
     defer root_node.deinit(allocator);
-    try root_node.addChild(try .initIdentifier("foo", allocator), allocator);
-    try root_node.addChild(.initLiteral(42), allocator);
+    try root_node.addChildToken(try .initIdentifier("foo", allocator), allocator);
+    try root_node.addChildToken(.initLiteral(42), allocator);
     try root_node.fmtLisp(&writer);
     try std.testing.expectEqualStrings("(= ('foo')(42))", writer.buffered());
+}
+
+test "parsing" {
+    var buffer: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buffer);
+    const allocator = std.testing.allocator;
+    // foo = 1 + 2 * 3
+    const tokens = [_]Token{
+        try Token.initIdentifier("foo", allocator),
+        Token.initSpecial(.assignment),
+        Token.initLiteral(1),
+        Token.initSpecial(.sum),
+        Token.initLiteral(2),
+        Token.initSpecial(.multiplication),
+        Token.initLiteral(3),
+        Token.initSpecial(.end_of_line),
+    };
+    var state = ParsingState{ .allocator = allocator, .counter = 0, .tokens = &tokens };
+    const ast = try parseExpression(&state, 0);
+    defer ast.deinit(allocator);
+
+    try ast.fmtLisp(&writer);
+    try std.testing.expectEqualStrings("(= ('foo')(+ (1)(* (2)(3))))", writer.buffered());
 }
