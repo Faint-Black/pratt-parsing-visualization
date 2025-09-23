@@ -22,7 +22,9 @@ pub fn main() !void {
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
     rl.setTargetFPS(render.frames_per_second);
-    const font = try rl.loadFont("../data/LiberationMono-Bold.ttf");
+    const bin_path = try std.fs.selfExeDirPathAlloc(gpa);
+    const font_path = try std.mem.concat(gpa, u8, &.{ bin_path, "/../../data/LiberationMono-Bold.ttf" });
+    const font = try rl.loadFont(@as([:0]u8, @ptrCast(font_path)));
     while (!rl.windowShouldClose()) : ({
         render.frame_counter += 1;
         render.screen_width = rl.getScreenWidth();
