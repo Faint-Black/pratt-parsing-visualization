@@ -36,6 +36,10 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
         }
         if (expression_end) try token_vector.append(allocator, Token.initSpecial(.end_of_line));
     }
+    // extra safety
+    if (token_vector.items.len > 0 and token_vector.getLast().token_type != .end_of_line) {
+        try token_vector.append(allocator, Token.initSpecial(.end_of_line));
+    }
 
     return token_vector.toOwnedSlice(allocator);
 }
@@ -43,6 +47,8 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
 /// perfect compile-time hash switching
 fn lexKeywordString(str: []const u8) ?Token {
     return switch (h(str)) {
+        h("(") => Token.initSpecial(.l_paren),
+        h(")") => Token.initSpecial(.r_paren),
         h("=") => Token.initSpecial(.assignment),
         h("+") => Token.initSpecial(.sum),
         h("*") => Token.initSpecial(.multiplication),

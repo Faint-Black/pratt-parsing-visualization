@@ -6,13 +6,15 @@ pub const ParsingState = struct {
     counter: usize,
     allocator: std.mem.Allocator,
 
-    pub fn consume(self: *ParsingState) Token {
+    pub fn consume(self: *ParsingState) !Token {
+        if (self.counter >= self.tokens.len) return error.OOB;
         const tmp = self.tokens[self.counter];
         self.counter += 1;
         return tmp;
     }
 
-    pub fn peek(self: *ParsingState) Token {
+    pub fn peek(self: *ParsingState) !Token {
+        if (self.counter >= self.tokens.len) return error.OOB;
         return self.tokens[self.counter];
     }
 
@@ -73,10 +75,10 @@ pub const AstNode = struct {
 };
 
 pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
-    var current_token = parse_state.consume();
+    var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
-    while (rbp < parse_state.peek().token_type.bindingPower()) {
-        current_token = parse_state.consume();
+    while (rbp < (try parse_state.peek()).token_type.bindingPower()) {
+        current_token = try parse_state.consume();
         if (current_token.token_type.associativity() == 'L') {
             left_node = try led(parse_state, current_token, left_node);
         }

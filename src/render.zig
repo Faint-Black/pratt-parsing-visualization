@@ -1,6 +1,9 @@
 const std = @import("std");
 const rl = @import("raylib");
 const rg = @import("raygui");
+const lex = @import("lexer.zig").lex;
+const parse = @import("ast.zig");
+const Token = @import("token.zig").Token;
 
 pub var screen_width: i32 = 400;
 pub var screen_height: i32 = 450;
@@ -10,6 +13,21 @@ pub var frame_counter: u64 = 0;
 /// buffer[0] -> previous state
 /// buffer[1] -> new state
 var textbox_internal_buffers: [2][512]u8 = std.mem.zeroes([2][512]u8);
+
+var parsedbox_internal_buffer: [512]u8 = std.mem.zeroes([512]u8);
+var parsedbox_text: [:0]const u8 = &.{};
+
+pub fn renderParsedbox(font: rl.Font) void {
+    if (parsedbox_text.len == 0) return;
+    rl.drawTextEx(
+        font,
+        parsedbox_text,
+        rl.Vector2{ .x = 10.0, .y = 80.0 },
+        20,
+        0,
+        .black,
+    );
+}
 
 /// renders and returns a readable slice of the textbox contents
 /// returns null if the textbox contents have not changed
@@ -37,4 +55,19 @@ pub fn updateTextBox() ?[]const u8 {
     } else {
         return textbox_internal_buffers[1][0..sentinel_pos_1];
     }
+}
+
+pub fn updateParsedText(str: []const u8, allocator: std.mem.Allocator) !void {
+    var writer = std.Io.Writer.fixed(&parsedbox_internal_buffer);
+    const tokens: []Token = try lex(str, allocator);
+    var parse_state = parse.ParsingState{
+        .allocator = allocator,
+        .counter = 0,
+        .tokens = tokens,
+    };
+    const ast: parse.AstNode = parse.parseExpression(&parse_state, 0) catch try parse.AstNode.init(Token.initSpecial(.end_of_line), allocator);
+    defer ast.deinit(allocator);
+    try ast.fmtLisp(&writer);
+    try writer.writeByte(0);
+    parsedbox_text = @ptrCast(writer.buffered());
 }

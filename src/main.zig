@@ -4,6 +4,7 @@ const rl = @import("raylib");
 const rg = @import("raygui");
 const render = @import("render.zig");
 const lex = @import("lexer.zig").lex;
+const parse = @import("ast.zig");
 const Token = @import("token.zig").Token;
 
 pub fn main() !void {
@@ -21,7 +22,7 @@ pub fn main() !void {
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
     rl.setTargetFPS(render.frames_per_second);
-
+    const font = try rl.loadFont("../data/LiberationMono-Bold.ttf");
     while (!rl.windowShouldClose()) : ({
         render.frame_counter += 1;
         render.screen_width = rl.getScreenWidth();
@@ -31,15 +32,10 @@ pub fn main() !void {
         defer rl.endDrawing();
         rl.clearBackground(.white);
 
+        render.renderParsedbox(font);
         const textbox_contents = render.updateTextBox();
         if (textbox_contents) |text| {
-            var buffer: [2048]u8 = undefined;
-            var writer = std.Io.Writer.fixed(&buffer);
-            const tokens = try lex(text, gpa);
-            defer gpa.free(tokens);
-            defer for (tokens) |tok| tok.deinit(gpa);
-            try Token.fmtArray(tokens, &writer);
-            std.debug.print("output tokens = {s}\n", .{writer.buffered()});
+            try render.updateParsedText(text, gpa);
         }
     }
 }
