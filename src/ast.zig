@@ -77,6 +77,7 @@ pub const AstNode = struct {
 pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
     var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
+    errdefer left_node.deinit(parse_state.allocator);
     while (rbp < (try parse_state.peek()).token_type.bindingPower()) {
         current_token = try parse_state.consume();
         if (current_token.token_type.associativity() == 'L') {

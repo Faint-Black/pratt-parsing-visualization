@@ -60,6 +60,7 @@ pub fn updateTextBox() ?[]const u8 {
 pub fn updateParsedText(str: []const u8, allocator: std.mem.Allocator) !void {
     var writer = std.Io.Writer.fixed(&parsedbox_internal_buffer);
     const tokens: []Token = try lex(str, allocator);
+    defer allocator.free(tokens);
     var parse_state = parse.ParsingState{
         .allocator = allocator,
         .counter = 0,
