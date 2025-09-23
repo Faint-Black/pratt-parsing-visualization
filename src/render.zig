@@ -57,18 +57,47 @@ pub fn updateTextBox() ?[]const u8 {
     }
 }
 
-pub fn updateParsedText(str: []const u8, allocator: std.mem.Allocator) !void {
+pub fn updateParsedText(ast: parse.AstNode) !void {
     var writer = std.Io.Writer.fixed(&parsedbox_internal_buffer);
-    const tokens: []Token = try lex(str, allocator);
-    defer allocator.free(tokens);
-    var parse_state = parse.ParsingState{
-        .allocator = allocator,
-        .counter = 0,
-        .tokens = tokens,
-    };
-    const ast: parse.AstNode = parse.parseExpression(&parse_state, 0) catch try parse.AstNode.init(Token.initSpecial(.end_of_line), allocator);
-    defer ast.deinit(allocator);
     try ast.fmtLisp(&writer);
     try writer.writeByte(0);
     parsedbox_text = @ptrCast(writer.buffered());
+}
+
+pub fn renderAST(ast: parse.AstNode, x: i32, y: i32, font: rl.Font) !void {
+    var buffer: [64]u8 = std.mem.zeroes([64]u8);
+    var writer = std.Io.Writer.fixed(&buffer);
+    try ast.token.fmtSymbol(&writer);
+    for (0..ast.children.len) |i| {
+        const height_separation = 70;
+        const max_separation = 100;
+        const separation: i32 = @divFloor(max_separation, @as(i32, @intCast(ast.children.len - 1)));
+        const x_final = (x + separation * @as(i32, @intCast(i))) - (max_separation / 2);
+        rl.drawLineEx(
+            rl.Vector2{
+                .x = @floatFromInt(x),
+                .y = @floatFromInt(y),
+            },
+            rl.Vector2{
+                .x = @floatFromInt(x_final),
+                .y = @floatFromInt(y + height_separation),
+            },
+            3.0,
+            .black,
+        );
+        try renderAST(ast.children[i], x_final, y + height_separation, font);
+    }
+    rl.drawCircle(x, y, 30, .black);
+    rl.drawCircle(x, y, 27, .blue);
+    rl.drawTextEx(
+        font,
+        @as([:0]u8, @ptrCast(writer.buffered())),
+        rl.Vector2{
+            .x = @floatFromInt(x - 8),
+            .y = @floatFromInt(y - 8),
+        },
+        16,
+        0,
+        .black,
+    );
 }

@@ -25,10 +25,20 @@ pub fn main() !void {
 
     const bin_path = try std.fs.selfExeDirPathAlloc(gpa);
     defer gpa.free(bin_path);
-    const font_path = try std.mem.concat(gpa, u8, &.{ bin_path, "/../../data/LiberationMono-Bold.ttf" });
+    const font_path = try std.mem.concat(
+        gpa,
+        u8,
+        &.{
+            bin_path,
+            "/../../data/",
+            "LiberationMono-Bold.ttf",
+        },
+    );
     defer gpa.free(font_path);
     const font = try rl.loadFont(@as([:0]u8, @ptrCast(font_path)));
 
+    var ast: parse.AstNode = try .init(.initSpecial(.end_of_line), gpa);
+    defer ast.deinit(gpa);
     while (!rl.windowShouldClose()) : ({
         render.frame_counter += 1;
         render.screen_width = rl.getScreenWidth();
@@ -37,13 +47,32 @@ pub fn main() !void {
         rl.beginDrawing();
         defer rl.endDrawing();
         rl.clearBackground(.white);
-
         render.renderParsedbox(font);
+        try render.renderAST(
+            ast,
+            @divTrunc(render.screen_width, 2),
+            @divTrunc(render.screen_height, 3),
+            font,
+        );
         const textbox_contents = render.updateTextBox();
         if (textbox_contents) |text| {
-            try render.updateParsedText(text, gpa);
+            ast.deinit(gpa);
+            ast = try lexAndParse(text, gpa);
+            try render.updateParsedText(ast);
         }
     }
+}
+
+pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode {
+    const tokens: []Token = try lex(str, allocator);
+    defer allocator.free(tokens);
+    var parse_state = parse.ParsingState{
+        .allocator = allocator,
+        .counter = 0,
+        .tokens = tokens,
+    };
+    const ast: parse.AstNode = parse.parseExpression(&parse_state, 0) catch try parse.AstNode.init(Token.initSpecial(.end_of_line), allocator);
+    return ast;
 }
 
 test "test index" {
