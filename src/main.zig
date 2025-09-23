@@ -47,4 +47,5 @@ pub fn main() !void {
 test "test index" {
     _ = @import("lexer.zig");
     _ = @import("token.zig");
+    _ = @import("ast.zig");
 }

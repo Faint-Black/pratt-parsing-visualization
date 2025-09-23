@@ -24,6 +24,14 @@ pub const Token = struct {
                 else => 0,
             };
         }
+
+        /// 'L' for left leaning associativity (foo + bar, foo*, etc.)
+        /// 'R' for right leaning associativity (++foo, !foo, *foo, &foo, etc.)
+        pub fn associativity(self: TokenType) u8 {
+            return switch (self) {
+                else => 'L',
+            };
+        }
     };
 
     pub fn deinit(self: Token, allocator: std.mem.Allocator) void {
@@ -54,7 +62,7 @@ pub const Token = struct {
         };
     }
 
-    pub fn fmt(self: Token, writer: *std.Io.Writer) !void {
+    pub fn fmtText(self: Token, writer: *std.Io.Writer) !void {
         switch (self.token_type) {
             .end_of_line => _ = try writer.write("$"),
             .identifier => _ = try writer.print("IDENTIFIER='{s}'", .{self.text.?}),
@@ -67,12 +75,25 @@ pub const Token = struct {
         }
     }
 
+    pub fn fmtSymbol(self: Token, writer: *std.Io.Writer) !void {
+        switch (self.token_type) {
+            .end_of_line => _ = try writer.write("$"),
+            .identifier => _ = try writer.print("'{s}'", .{self.text.?}),
+            .literal_number => _ = try writer.print("{}", .{self.value}),
+            .l_paren => _ = try writer.write("("),
+            .r_paren => _ = try writer.write(")"),
+            .assignment => _ = try writer.write("="),
+            .sum => _ = try writer.write("+"),
+            .multiplication => _ = try writer.write("*"),
+        }
+    }
+
     pub fn fmtArray(token_array: []const Token, writer: *std.Io.Writer) !void {
         var is_first: bool = true;
         _ = try writer.writeByte('[');
         for (token_array) |token| {
             if (is_first) is_first = false else _ = try writer.write(", ");
-            try token.fmt(writer);
+            try token.fmtText(writer);
         }
         _ = try writer.writeByte(']');
     }
@@ -80,7 +101,7 @@ pub const Token = struct {
 
 test "token formatting" {
     var buffer: [512]u8 = undefined;
-    var fixed_writer = std.Io.Writer.fixed(&buffer);
+    var writer = std.Io.Writer.fixed(&buffer);
     const tokens = [_]Token{
         try Token.initIdentifier("foo", std.testing.allocator),
         Token.initSpecial(.assignment),
@@ -88,9 +109,9 @@ test "token formatting" {
         Token.initSpecial(.end_of_line),
     };
     defer for (tokens) |token| token.deinit(std.testing.allocator);
-    try Token.fmtArray(&tokens, &fixed_writer);
+    try Token.fmtArray(&tokens, &writer);
     try std.testing.expectEqualStrings(
         "[IDENTIFIER='foo', ASSIGNMENT, NUM=42, $]",
-        fixed_writer.buffered(),
+        writer.buffered(),
     );
 }
