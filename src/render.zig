@@ -64,40 +64,63 @@ pub fn updateParsedText(ast: parse.AstNode) !void {
     parsedbox_text = @ptrCast(writer.buffered());
 }
 
-pub fn renderAST(ast: parse.AstNode, x: i32, y: i32, font: rl.Font) !void {
+pub fn renderAST(
+    ast: parse.AstNode,
+    x: i32,
+    y: i32,
+    font: rl.Font,
+    allocator: std.mem.Allocator,
+) !void {
     var buffer: [64]u8 = std.mem.zeroes([64]u8);
     var writer = std.Io.Writer.fixed(&buffer);
     try ast.token.fmtSymbol(&writer);
+    var font_size: f32 = undefined;
+    if (ast.token.token_type == .identifier) {
+        font_size = 16;
+    } else {
+        font_size = 32;
+    }
+    const font_spacing = 0;
+    const ast_text: [:0]u8 = try allocator.dupeZ(u8, writer.buffered());
+    defer allocator.free(ast_text);
+    const text_dimensions = rl.measureTextEx(font, ast_text, font_size, font_spacing);
     for (0..ast.children.len) |i| {
         const height_separation = 70;
-        const max_separation = 100;
-        const separation: i32 = @divFloor(max_separation, @as(i32, @intCast(ast.children.len - 1)));
-        const x_final = (x + separation * @as(i32, @intCast(i))) - (max_separation / 2);
-        rl.drawLineEx(
-            rl.Vector2{
-                .x = @floatFromInt(x),
-                .y = @floatFromInt(y),
-            },
-            rl.Vector2{
-                .x = @floatFromInt(x_final),
-                .y = @floatFromInt(y + height_separation),
-            },
-            3.0,
-            .black,
+        const width_separation = 100;
+        const separation: i32 = @divFloor(
+            width_separation,
+            @as(i32, @intCast(ast.children.len - 1)),
         );
-        try renderAST(ast.children[i], x_final, y + height_separation, font);
+        const x_final = (x + separation * @as(i32, @intCast(i))) - (width_separation / 2);
+        const line_start_pos = rl.Vector2{
+            .x = @floatFromInt(x),
+            .y = @floatFromInt(y),
+        };
+        const line_end_pos = rl.Vector2{
+            .x = @floatFromInt(x_final),
+            .y = @floatFromInt(y + height_separation),
+        };
+        rl.drawLineEx(line_start_pos, line_end_pos, 3.0, .black);
+        try renderAST(ast.children[i], x_final, y + height_separation, font, allocator);
     }
     rl.drawCircle(x, y, 30, .black);
-    rl.drawCircle(x, y, 27, .blue);
-    rl.drawTextEx(
-        font,
-        @as([:0]u8, @ptrCast(writer.buffered())),
-        rl.Vector2{
-            .x = @floatFromInt(x - 8),
-            .y = @floatFromInt(y - 8),
-        },
-        16,
-        0,
-        .black,
-    );
+    rl.drawCircle(x, y, 28, tokenColor(ast.token.token_type));
+    const text_pos = rl.Vector2{
+        .x = @as(f32, @floatFromInt(x)) - text_dimensions.x / 2.0,
+        .y = @as(f32, @floatFromInt(y)) - text_dimensions.y / 2.0,
+    };
+    rl.drawTextEx(font, ast_text, text_pos, font_size, font_spacing, .black);
+}
+
+fn tokenColor(token_type: Token.TokenType) rl.Color {
+    return switch (token_type) {
+        .end_of_line => .white,
+        .identifier => .orange,
+        .literal_number => .purple,
+        .l_paren => .blue,
+        .r_paren => .blue,
+        .assignment => .blue,
+        .sum => .blue,
+        .multiplication => .blue,
+    };
 }

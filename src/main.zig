@@ -53,6 +53,7 @@ pub fn main() !void {
             @divTrunc(render.screen_width, 2),
             @divTrunc(render.screen_height, 3),
             font,
+            gpa,
         );
         const textbox_contents = render.updateTextBox();
         if (textbox_contents) |text| {
