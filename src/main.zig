@@ -57,8 +57,10 @@ pub fn main() !void {
         );
         const textbox_contents = render.updateTextBox();
         if (textbox_contents) |text| {
-            ast.deinit(gpa);
-            ast = try lexAndParse(text, gpa);
+            if (lexAndParse(text, gpa) catch null) |new_ast| {
+                ast.deinit(gpa);
+                ast = new_ast;
+            }
             try render.updateParsedText(ast);
         }
     }
@@ -67,12 +69,13 @@ pub fn main() !void {
 pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode {
     const tokens: []Token = try lex(str, allocator);
     defer allocator.free(tokens);
+    defer for (tokens) |token| token.deinit(allocator);
     var parse_state = parse.ParsingState{
         .allocator = allocator,
         .counter = 0,
         .tokens = tokens,
     };
-    const ast: parse.AstNode = parse.parseExpression(&parse_state, 0) catch try parse.AstNode.init(Token.initSpecial(.end_of_line), allocator);
+    const ast: parse.AstNode = try parse.parseExpression(&parse_state, 0);
     return ast;
 }
 

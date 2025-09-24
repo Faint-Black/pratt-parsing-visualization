@@ -53,14 +53,15 @@ pub const AstNode = struct {
         }
     };
 
+    /// automatically makes a copy of the input token
     pub fn init(token: Token, allocator: std.mem.Allocator) !AstNode {
         return AstNode{
-            .token = token,
+            .token = try Token.copy(token, allocator),
             .children = try allocator.alloc(AstNode, 0),
         };
     }
 
-    /// recursive deinit, call for root only, it also frees tokens
+    /// recursive deinit, call for root only
     pub fn deinit(self: AstNode, allocator: std.mem.Allocator) void {
         for (self.children) |child| child.deinit(allocator);
         self.token.deinit(allocator);
@@ -147,7 +148,9 @@ test "AST printing" {
 
     var root_node = try AstNode.init(.initSpecial(.assignment), allocator);
     defer root_node.deinit(allocator);
-    try root_node.addChildToken(try .initIdentifier("foo", allocator), allocator);
+    const foo_token = try Token.initIdentifier("foo", allocator);
+    defer foo_token.deinit(allocator);
+    try root_node.addChildToken(foo_token, allocator);
     try root_node.addChildToken(.initLiteral(42), allocator);
     try root_node.fmtLisp(&writer);
     try std.testing.expectEqualStrings("(= ('foo')(42))", writer.buffered());
@@ -157,6 +160,7 @@ test "parsing" {
     var buffer: [512]u8 = undefined;
     var writer = std.Io.Writer.fixed(&buffer);
     const allocator = std.testing.allocator;
+
     // foo = 1 + 2 * 3
     const tokens = [_]Token{
         try Token.initIdentifier("foo", allocator),
@@ -168,6 +172,8 @@ test "parsing" {
         Token.initLiteral(3),
         Token.initSpecial(.end_of_line),
     };
+    defer for (tokens) |token| token.deinit(allocator);
+
     var state = ParsingState{ .allocator = allocator, .counter = 0, .tokens = &tokens };
     const ast = try parseExpression(&state, 0);
     defer ast.deinit(allocator);

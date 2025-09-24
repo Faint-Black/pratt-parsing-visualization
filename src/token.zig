@@ -55,6 +55,17 @@ pub const Token = struct {
         if (self.text) |mem| allocator.free(mem);
     }
 
+    pub fn copy(self: Token, allocator: std.mem.Allocator) !Token {
+        if (self.token_type == .identifier) {
+            return Token{
+                .token_type = .identifier,
+                .text = if (self.text) |text| try allocator.dupe(u8, text) else null,
+                .value = 0,
+            };
+        }
+        return self;
+    }
+
     pub fn initIdentifier(name: []const u8, allocator: std.mem.Allocator) !Token {
         return Token{
             .token_type = .identifier,
