@@ -17,12 +17,15 @@ pub const Token = struct {
         multiplication,
         division,
         negation,
+        boolean_and,
+        boolean_or,
 
         /// {lbp, rbp}
         pub fn bindingPower(self: TokenType) struct { i32, i32 } {
             return switch (self) {
                 .assignment => .{ 5, 4 },
                 .sum, .subtraction => .{ 10, 10 },
+                .boolean_and, .boolean_or => .{ 15, 15 },
                 .multiplication, .division => .{ 20, 20 },
                 .negation => .{ 0, 100 },
                 else => .{ 0, 0 },
@@ -120,6 +123,8 @@ pub const Token = struct {
             .multiplication => try writer.writeByte('*'),
             .division => try writer.writeByte('/'),
             .negation => try writer.writeByte('-'),
+            .boolean_and => _ = try writer.write("&&"),
+            .boolean_or => _ = try writer.write("||"),
         }
     }
 

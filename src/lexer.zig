@@ -108,11 +108,8 @@ fn isWhitespace(c: u8) bool {
 /// perfect compile-time hash switching
 fn lexKeywordString(str: []const u8) ?Token {
     return switch (h(str)) {
-        h("(") => Token.initSpecial(.l_paren),
-        h(")") => Token.initSpecial(.r_paren),
-        h("=") => Token.initSpecial(.assignment),
-        h("+") => Token.initSpecial(.sum),
-        h("*") => Token.initSpecial(.multiplication),
+        h("and") => Token.initSpecial(.boolean_and),
+        h("or") => Token.initSpecial(.boolean_or),
         else => null,
     };
 }

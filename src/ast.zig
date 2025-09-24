@@ -47,6 +47,8 @@ pub const AstNode = struct {
                 .multiplication => .binary_operation,
                 .division => .binary_operation,
                 .negation => .unary_operation,
+                .boolean_and => .binary_operation,
+                .boolean_or => .binary_operation,
             };
         }
     };
