@@ -74,16 +74,6 @@ pub fn renderAST(
     var buffer: [64]u8 = std.mem.zeroes([64]u8);
     var writer = std.Io.Writer.fixed(&buffer);
     try ast.token.fmtSymbol(&writer);
-    var font_size: f32 = undefined;
-    if (ast.token.token_type == .identifier) {
-        font_size = 16;
-    } else {
-        font_size = 32;
-    }
-    const font_spacing = 0;
-    const ast_text: [:0]u8 = try allocator.dupeZ(u8, writer.buffered());
-    defer allocator.free(ast_text);
-    const text_dimensions = rl.measureTextEx(font, ast_text, font_size, font_spacing);
     for (0..ast.children.len) |i| {
         const height_separation = 70;
         const width_separation = 100;
@@ -113,8 +103,20 @@ pub fn renderAST(
         rl.drawLineEx(line_start_pos, line_end_pos, 3.0, .black);
         try renderAST(ast.children[i], x_final, y + height_separation, font, allocator);
     }
-    rl.drawCircle(x, y, 30, .black);
-    rl.drawCircle(x, y, 28, tokenColor(ast.token.token_type));
+    var font_size: f32 = undefined;
+    if (ast.token.token_type == .identifier) {
+        font_size = 18;
+    } else {
+        font_size = 32;
+    }
+    const font_spacing = 0;
+    const ast_text: [:0]u8 = try allocator.dupeZ(u8, writer.buffered());
+    defer allocator.free(ast_text);
+    const text_dimensions = rl.measureTextEx(font, ast_text, font_size, font_spacing);
+    const padding = 15;
+    const circle_radius = (text_dimensions.x / 2) + padding;
+    rl.drawCircle(x, y, circle_radius, .black);
+    rl.drawCircle(x, y, circle_radius - 2, tokenColor(ast.token.token_type));
     const text_pos = rl.Vector2{
         .x = @as(f32, @floatFromInt(x)) - text_dimensions.x / 2.0,
         .y = @as(f32, @floatFromInt(y)) - text_dimensions.y / 2.0,
@@ -124,7 +126,7 @@ pub fn renderAST(
 
 fn tokenColor(token_type: Token.TokenType) rl.Color {
     return switch (parse.AstNode.AstNodeType.fromTokenType(token_type)) {
-        .unary_operation => .orange,
+        .unary_operation => .pink,
         .binary_operation => .purple,
         .identifier => .blue,
         .literal => .sky_blue,
