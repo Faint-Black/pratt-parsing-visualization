@@ -17,25 +17,24 @@ pub fn main() !void {
         if (is_debug_alloc) _ = debug_allocator.deinit();
     }
 
+    var buffer: [2048]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const fixed_allocator = fba.allocator();
+
     rl.setTraceLogLevel(.err);
     rl.initWindow(render.screen_width, render.screen_height, "Pratt Parsing");
     defer rl.closeWindow();
     rl.setWindowState(.{ .window_resizable = true });
     rl.setTargetFPS(render.frames_per_second);
 
-    const bin_path = try std.fs.selfExeDirPathAlloc(gpa);
-    defer gpa.free(bin_path);
-    const font_path = try std.mem.concat(
-        gpa,
-        u8,
-        &.{
-            bin_path,
-            "/../../data/",
-            "LiberationMono-Bold.ttf",
-        },
-    );
-    defer gpa.free(font_path);
-    const font = try rl.loadFont(@as([:0]u8, @ptrCast(font_path)));
+    const bin_path = try std.fs.selfExeDirPathAlloc(fixed_allocator);
+    defer fixed_allocator.free(bin_path);
+    const font_path = try std.mem.concatWithSentinel(fixed_allocator, u8, &.{
+        bin_path,
+        "/../../data/LiberationMono-Bold.ttf",
+    }, 0);
+    defer fixed_allocator.free(font_path);
+    const font = try rl.loadFont(font_path);
 
     var ast: parse.AstNode = try .init(.initSpecial(.end_of_line), gpa);
     defer ast.deinit(gpa);
@@ -46,7 +45,8 @@ pub fn main() !void {
     }) {
         rl.beginDrawing();
         defer rl.endDrawing();
-        rl.clearBackground(.white);
+        rl.clearBackground(.ray_white);
+
         render.renderParsedbox(font);
         try render.renderAST(
             ast,
@@ -77,6 +77,7 @@ pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode
         .tokens = tokens,
     };
     const ast: parse.AstNode = try parse.parseExpression(&parse_state, 0);
+
     return ast;
 }
 
