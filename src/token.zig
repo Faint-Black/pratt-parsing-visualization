@@ -107,6 +107,8 @@ pub const Token = struct {
             .multiplication => _ = try writer.write("MUL"),
             .division => _ = try writer.write("DIV"),
             .negation => _ = try writer.write("NEGATION"),
+            .boolean_and => _ = try writer.write("BOOL_AND"),
+            .boolean_or => _ = try writer.write("BOOL_OR"),
         }
     }
 

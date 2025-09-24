@@ -8,72 +8,68 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
     const fixed_allocator = fba.allocator();
 
-    var token_vector: std.ArrayList(Token) = .empty;
-    defer token_vector.deinit(allocator);
     var char_vector: std.ArrayList(u8) = .empty;
     defer char_vector.deinit(fixed_allocator);
+    var token_vector: std.ArrayList(Token) = .empty;
+    defer token_vector.deinit(allocator);
+    errdefer for (token_vector.items) |token| token.deinit(allocator);
 
     var string_building_mode: bool = false;
     var number_building_mode: bool = false;
-
-    var expression_end: bool = false;
-    var whitespace: bool = false;
+    var request_buffer_flush: bool = false;
 
     var c: u8 = undefined;
-    var next: u8 = undefined;
+    var next_c: u8 = undefined;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {
         c = text[i];
         if (c == 0) break;
-        next = peekNextChar(text, i);
-        whitespace = isWhitespace(c);
+        next_c = peekNextChar(text, i);
+
+        if (number_building_mode and !isNumberChar(c)) request_buffer_flush = true;
+        if (string_building_mode and !isNormalChar(c)) request_buffer_flush = true;
+
+        if (request_buffer_flush and (char_vector.items.len > 0)) {
+            request_buffer_flush = false;
+            if (number_building_mode) {
+                number_building_mode = false;
+                const str = try char_vector.toOwnedSlice(fixed_allocator);
+                const value_token = try lexNumberString(str);
+                try token_vector.append(allocator, value_token);
+            } else if (string_building_mode) {
+                string_building_mode = false;
+                const str = try char_vector.toOwnedSlice(fixed_allocator);
+                if (lexKeywordString(str)) |keyword_token| {
+                    try token_vector.append(allocator, keyword_token);
+                } else {
+                    try token_vector.append(allocator, try .initIdentifier(str, allocator));
+                }
+            }
+        }
+
+        if (isNumberChar(c)) number_building_mode = true;
+        if (isNormalChar(c)) string_building_mode = true;
+        if (number_building_mode or string_building_mode) {
+            try char_vector.append(fixed_allocator, c);
+        }
 
         switch (c) {
-            ';' => expression_end = true,
+            ';' => try token_vector.append(allocator, .initSpecial(.end_of_line)),
             '=' => try token_vector.append(allocator, .initSpecial(.assignment)),
             '(' => try token_vector.append(allocator, .initSpecial(.l_paren)),
             ')' => try token_vector.append(allocator, .initSpecial(.r_paren)),
             '+' => try token_vector.append(allocator, .initSpecial(.sum)),
             '*' => try token_vector.append(allocator, .initSpecial(.multiplication)),
             '/' => try token_vector.append(allocator, .initSpecial(.division)),
-            '-' => if (isWhitespace(next)) {
-                try token_vector.append(allocator, .initSpecial(.subtraction));
-            } else {
-                try token_vector.append(allocator, .initSpecial(.negation));
+            '-' => {
+                if (isWhitespace(next_c)) {
+                    try token_vector.append(allocator, .initSpecial(.subtraction));
+                } else {
+                    try token_vector.append(allocator, .initSpecial(.negation));
+                }
             },
             else => {},
         }
-
-        // buffer flush requested
-        if (whitespace and (char_vector.items.len > 0)) {
-            if (number_building_mode) {
-                const str = try char_vector.toOwnedSlice(fixed_allocator);
-                const value_token = lexNumberString(str) orelse return error.BadInteger;
-                try token_vector.append(allocator, value_token);
-                number_building_mode = false;
-            }
-            if (string_building_mode) {
-                const str = try char_vector.toOwnedSlice(fixed_allocator);
-                if (lexKeywordString(str)) |keyword_token| {
-                    try token_vector.append(allocator, keyword_token);
-                } else {
-                    try token_vector.append(allocator, try Token.initIdentifier(str, allocator));
-                }
-                string_building_mode = false;
-            }
-        }
-
-        if (isNumberChar(c)) {
-            number_building_mode = true;
-        }
-        if (isNormalChar(c)) {
-            string_building_mode = true;
-        }
-        if (number_building_mode or string_building_mode) {
-            try char_vector.append(fixed_allocator, c);
-        }
-
-        if (expression_end) try token_vector.append(allocator, Token.initSpecial(.end_of_line));
     }
 
     return token_vector.toOwnedSlice(allocator);
@@ -114,37 +110,42 @@ fn lexKeywordString(str: []const u8) ?Token {
     };
 }
 
-/// only accepts normal, base 10 integers. They may be negative
-fn lexNumberString(str: []const u8) ?Token {
-    const value: i32 = std.fmt.parseInt(i32, str, 10) catch return null;
-    std.debug.assert(value > 0);
+/// only accepts normal, base 10 integers. They may NOT be negative
+fn lexNumberString(str: []const u8) !Token {
+    const value: i32 = try std.fmt.parseInt(i32, str, 10);
+    if (value < 0) return error.BadInteger;
     return Token.initLiteral(value);
 }
 
 test "lexing" {
+    var buffer: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buffer);
     const allocator = std.testing.allocator;
 
-    const input = "foo = -42 - -1337;";
+    const input = "foo = -(42 - -1337);";
+    const expected_text = "[IDENTIFIER='foo', ASSIGNMENT, NEGATION, L_PAREN, NUM=42, SUBTRACTION, NEGATION, NUM=1337, R_PAREN, $]";
     const expected_tokens = [_]Token{
         try Token.initIdentifier("foo", allocator),
         Token.initSpecial(.assignment),
         Token.initSpecial(.negation),
+        Token.initSpecial(.l_paren),
         Token.initLiteral(42),
         Token.initSpecial(.subtraction),
         Token.initSpecial(.negation),
         Token.initLiteral(1337),
+        Token.initSpecial(.r_paren),
         Token.initSpecial(.end_of_line),
     };
     defer for (expected_tokens) |token| token.deinit(allocator);
-    const expected_text = "[IDENTIFIER='foo', ASSIGNMENT, NEGATION, NUM=42, SUBTRACTION, NEGATION, NUM=1337, $]";
 
     const lexed = try lex(input, allocator);
     defer allocator.free(lexed);
     defer for (lexed) |token| token.deinit(allocator);
-    var buffer: [512]u8 = undefined;
-    var writer = std.Io.Writer.fixed(&buffer);
+
+    // text format testing
     try Token.fmtArray(lexed, &writer);
     try std.testing.expectEqualStrings(expected_text, writer.buffered());
+    // token eql testing
     for (expected_tokens, lexed) |expected, got| {
         try std.testing.expect(Token.eql(expected, got));
     }
