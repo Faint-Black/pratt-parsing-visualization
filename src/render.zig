@@ -87,11 +87,21 @@ pub fn renderAST(
     for (0..ast.children.len) |i| {
         const height_separation = 70;
         const width_separation = 100;
-        const separation: i32 = @divFloor(
-            width_separation,
-            @as(i32, @intCast(ast.children.len - 1)),
-        );
-        const x_final = (x + separation * @as(i32, @intCast(i))) - (width_separation / 2);
+        var separation: i32 = undefined;
+        if (ast.children.len == 1) {
+            separation = 0;
+        } else {
+            separation = @divFloor(
+                width_separation,
+                @as(i32, @intCast(ast.children.len - 1)),
+            );
+        }
+        var x_final: i32 = undefined;
+        if (separation == 0) {
+            x_final = x;
+        } else {
+            x_final = (x + separation * @as(i32, @intCast(i))) - (width_separation / 2);
+        }
         const line_start_pos = rl.Vector2{
             .x = @floatFromInt(x),
             .y = @floatFromInt(y),
@@ -113,14 +123,11 @@ pub fn renderAST(
 }
 
 fn tokenColor(token_type: Token.TokenType) rl.Color {
-    return switch (token_type) {
-        .end_of_line => .white,
-        .identifier => .orange,
-        .literal_number => .purple,
-        .l_paren => .blue,
-        .r_paren => .blue,
-        .assignment => .blue,
-        .sum => .blue,
-        .multiplication => .blue,
+    return switch (parse.AstNode.AstNodeType.fromTokenType(token_type)) {
+        .unary_operation => .orange,
+        .binary_operation => .purple,
+        .identifier => .blue,
+        .literal => .sky_blue,
+        .special => .white,
     };
 }

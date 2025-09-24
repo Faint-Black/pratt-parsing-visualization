@@ -27,6 +27,30 @@ pub const AstNode = struct {
     token: Token,
     children: []AstNode,
 
+    pub const AstNodeType = enum {
+        binary_operation,
+        unary_operation,
+        identifier,
+        literal,
+        special,
+
+        pub fn fromTokenType(token_type: Token.TokenType) AstNodeType {
+            return switch (token_type) {
+                .end_of_line => .special,
+                .identifier => .identifier,
+                .literal_number => .literal,
+                .l_paren => .special,
+                .r_paren => .special,
+                .assignment => .binary_operation,
+                .sum => .binary_operation,
+                .subtraction => .binary_operation,
+                .multiplication => .binary_operation,
+                .division => .binary_operation,
+                .negation => .unary_operation,
+            };
+        }
+    };
+
     pub fn init(token: Token, allocator: std.mem.Allocator) !AstNode {
         return AstNode{
             .token = token,
@@ -78,7 +102,7 @@ pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
     var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
     errdefer left_node.deinit(parse_state.allocator);
-    while (rbp < (try parse_state.peek()).token_type.bindingPower()) {
+    while (rbp < (try parse_state.peek()).token_type.leftBindingPower()) {
         current_token = try parse_state.consume();
         if (current_token.token_type.associativity() == 'L') {
             left_node = try led(parse_state, current_token, left_node);
@@ -88,17 +112,25 @@ pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
 }
 
 fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
+    var result_node: AstNode = undefined;
     if (current.token_type == .l_paren) {
-        const tmp = try parseExpression(parse_state, 0);
+        result_node = try parseExpression(parse_state, 0);
         parse_state.advance(); // skip closing paren
-        return tmp;
+        return result_node;
     }
-    return try AstNode.init(current, parse_state.allocator);
+    if (current.token_type == .negation) {
+        const right = try parseExpression(parse_state, current.token_type.leftBindingPower());
+        result_node = try AstNode.init(current, parse_state.allocator);
+        try result_node.addChildNode(right, parse_state.allocator);
+        return result_node;
+    }
+    result_node = try AstNode.init(current, parse_state.allocator);
+    return result_node;
 }
 
 fn led(parse_state: *ParsingState, current: Token, left: AstNode) anyerror!AstNode {
     var result_node = try AstNode.init(current, parse_state.allocator);
-    const right = try parseExpression(parse_state, current.token_type.bindingPower());
+    const right = try parseExpression(parse_state, current.token_type.leftBindingPower());
     try result_node.addChildNode(left, parse_state.allocator);
     try result_node.addChildNode(right, parse_state.allocator);
     return result_node;

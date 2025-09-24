@@ -13,16 +13,30 @@ pub const Token = struct {
         r_paren,
         assignment,
         sum,
+        subtraction,
         multiplication,
+        division,
+        negation,
 
-        pub fn bindingPower(self: TokenType) i32 {
+        /// {lbp, rbp}
+        pub fn bindingPower(self: TokenType) struct { i32, i32 } {
             return switch (self) {
-                .end_of_line => -1,
-                .assignment => 1,
-                .sum => 2,
-                .multiplication => 3,
-                else => 0,
+                .assignment => .{ 5, 4 },
+                .sum, .subtraction => .{ 10, 10 },
+                .multiplication, .division => .{ 20, 20 },
+                .negation => .{ 0, 100 },
+                else => .{ 0, 0 },
             };
+        }
+
+        /// lbp only
+        pub fn leftBindingPower(self: TokenType) i32 {
+            return self.bindingPower()[0];
+        }
+
+        /// rbp only
+        pub fn rightBindingPower(self: TokenType) i32 {
+            return self.bindingPower()[1];
         }
 
         /// 'L' for left leaning associativity (foo + bar, foo*, etc.)
@@ -62,6 +76,21 @@ pub const Token = struct {
         };
     }
 
+    pub fn eql(a: Token, b: Token) bool {
+        if (a.token_type != b.token_type) return false;
+        const both_types = a.token_type;
+        if (both_types == .identifier) {
+            if (a.text == null and b.text == null) return true;
+            if (a.text != null and b.text == null) return false;
+            if (a.text == null and b.text != null) return false;
+            return (std.mem.eql(u8, a.text.?, b.text.?));
+        }
+        if (both_types == .literal_number) {
+            return (a.value == b.value);
+        }
+        return true;
+    }
+
     pub fn fmtText(self: Token, writer: *std.Io.Writer) !void {
         switch (self.token_type) {
             .end_of_line => _ = try writer.write("$"),
@@ -71,20 +100,26 @@ pub const Token = struct {
             .r_paren => _ = try writer.write("R_PAREN"),
             .assignment => _ = try writer.write("ASSIGNMENT"),
             .sum => _ = try writer.write("SUM"),
-            .multiplication => _ = try writer.write("MULT"),
+            .subtraction => _ = try writer.write("SUBTRACTION"),
+            .multiplication => _ = try writer.write("MUL"),
+            .division => _ = try writer.write("DIV"),
+            .negation => _ = try writer.write("NEGATION"),
         }
     }
 
     pub fn fmtSymbol(self: Token, writer: *std.Io.Writer) !void {
         switch (self.token_type) {
-            .end_of_line => _ = try writer.write("$"),
+            .end_of_line => try writer.writeByte('$'),
             .identifier => _ = try writer.print("'{s}'", .{self.text.?}),
             .literal_number => _ = try writer.print("{}", .{self.value}),
-            .l_paren => _ = try writer.write("("),
-            .r_paren => _ = try writer.write(")"),
-            .assignment => _ = try writer.write("="),
-            .sum => _ = try writer.write("+"),
-            .multiplication => _ = try writer.write("*"),
+            .l_paren => try writer.writeByte('('),
+            .r_paren => try writer.writeByte(')'),
+            .assignment => try writer.writeByte('='),
+            .sum => try writer.writeByte('+'),
+            .subtraction => try writer.writeByte('-'),
+            .multiplication => try writer.writeByte('*'),
+            .division => try writer.writeByte('/'),
+            .negation => try writer.writeByte('-'),
         }
     }
 
@@ -114,4 +149,35 @@ test "token formatting" {
         "[IDENTIFIER='foo', ASSIGNMENT, NUM=42, $]",
         writer.buffered(),
     );
+}
+
+test "token comparing" {
+    var buffer: [2048]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buffer);
+    const allocator = fba.allocator();
+
+    try std.testing.expect(Token.eql(
+        Token.initSpecial(.sum),
+        Token.initSpecial(.sum),
+    ));
+    try std.testing.expect(!Token.eql(
+        Token.initSpecial(.subtraction),
+        Token.initSpecial(.sum),
+    ));
+    try std.testing.expect(Token.eql(
+        try Token.initIdentifier("foo", allocator),
+        try Token.initIdentifier("foo", allocator),
+    ));
+    try std.testing.expect(!Token.eql(
+        try Token.initIdentifier("foo", allocator),
+        try Token.initIdentifier("bar", allocator),
+    ));
+    try std.testing.expect(Token.eql(
+        Token.initLiteral(42),
+        Token.initLiteral(42),
+    ));
+    try std.testing.expect(!Token.eql(
+        Token.initLiteral(42),
+        Token.initLiteral(1337),
+    ));
 }
