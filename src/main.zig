@@ -48,13 +48,6 @@ pub fn main() !void {
         rl.clearBackground(.ray_white);
 
         render.renderParsedbox(font);
-        try render.renderAST(
-            ast,
-            @divTrunc(render.screen_width, 2),
-            @divTrunc(render.screen_height, 3),
-            font,
-            gpa,
-        );
         const textbox_contents = render.updateTextBox();
         if (textbox_contents) |text| {
             if (lexAndParse(text, gpa) catch null) |new_ast| {
@@ -63,6 +56,8 @@ pub fn main() !void {
             }
             try render.updateParsedText(ast);
         }
+
+        try render.RenderAST.render(ast, font, gpa);
     }
 }
 
