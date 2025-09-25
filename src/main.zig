@@ -70,14 +70,8 @@ pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode
     const tokens: []Token = try lex(str, allocator);
     defer allocator.free(tokens);
     defer for (tokens) |token| token.deinit(allocator);
-
-    var parse_state = parse.ParsingState{
-        .allocator = allocator,
-        .counter = 0,
-        .tokens = tokens,
-    };
+    var parse_state = parse.ParsingState.init(tokens, allocator);
     const ast: parse.AstNode = try parse.parseExpression(&parse_state, 0);
-
     return ast;
 }
 

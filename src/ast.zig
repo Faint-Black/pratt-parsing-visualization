@@ -3,19 +3,31 @@ const Token = @import("token.zig").Token;
 
 pub const ParsingState = struct {
     tokens: []const Token,
-    counter: usize,
+    counter: usize = 0,
     allocator: std.mem.Allocator,
+
+    pub fn init(tokens: []const Token, allocator: std.mem.Allocator) ParsingState {
+        return ParsingState{
+            .tokens = tokens,
+            .allocator = allocator,
+        };
+    }
 
     pub fn consume(self: *ParsingState) !Token {
         if (self.counter >= self.tokens.len) return error.OOB;
         const tmp = self.tokens[self.counter];
-        self.counter += 1;
+        self.advance();
         return tmp;
     }
 
     pub fn peek(self: *ParsingState) !Token {
         if (self.counter >= self.tokens.len) return error.OOB;
         return self.tokens[self.counter];
+    }
+
+    pub fn match(self: *ParsingState, expect: Token.TokenType) !void {
+        const next = try self.consume();
+        if (next.token_type != expect) return error.BadMatch;
     }
 
     pub fn advance(self: *ParsingState) void {
@@ -105,41 +117,45 @@ pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
     var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
     errdefer left_node.deinit(parse_state.allocator);
-    while (rbp < (try parse_state.peek()).token_type.leftBindingPower()) {
+    while (rbp < (try parse_state.peek()).token_type.lbp()) {
         current_token = try parse_state.consume();
-        if (current_token.token_type.associativity() == 'L') {
-            left_node = try led(parse_state, current_token, left_node);
-        }
+        left_node = try led(parse_state, current_token, left_node);
     }
     return left_node;
 }
 
 fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
+    const current_token_type = current.token_type;
+    const current_node_type = AstNode.AstNodeType.fromTokenType(current.token_type);
     var result_node: AstNode = undefined;
-    if (current.token_type == .l_paren) {
+    var right: AstNode = undefined;
+    if (current_token_type == .l_paren) {
         result_node = try parseExpression(parse_state, 0);
-        parse_state.advance(); // skip closing paren
-        return result_node;
-    }
-    if (current.token_type == .negation) {
-        const right = try parseExpression(parse_state, current.token_type.leftBindingPower());
+        errdefer result_node.deinit(parse_state.allocator);
+        try parse_state.match(.r_paren);
+    } else if (current_node_type == .unary_operation) {
+        right = try parseExpression(parse_state, current.token_type.rbp());
         result_node = try AstNode.init(current, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
-        return result_node;
+    } else {
+        // return current token as is
+        result_node = try AstNode.init(current, parse_state.allocator);
     }
-    result_node = try AstNode.init(current, parse_state.allocator);
     return result_node;
 }
 
 fn led(parse_state: *ParsingState, current: Token, left: AstNode) anyerror!AstNode {
-    var result_node = try AstNode.init(current, parse_state.allocator);
-    const right = try parseExpression(parse_state, current.token_type.leftBindingPower());
-    try result_node.addChildNode(left, parse_state.allocator);
-    try result_node.addChildNode(right, parse_state.allocator);
+    const current_node_type = AstNode.AstNodeType.fromTokenType(current.token_type);
+    var result_node: AstNode = undefined;
+    var right: AstNode = undefined;
+    if (current_node_type == .binary_operation) {
+        result_node = try AstNode.init(current, parse_state.allocator);
+        right = try parseExpression(parse_state, current.token_type.rbp());
+        try result_node.addChildNode(left, parse_state.allocator);
+        try result_node.addChildNode(right, parse_state.allocator);
+    }
     return result_node;
 }
-
-// fn red(parse_state: *ParsingState, current: Token, left: Token) Token {}
 
 test "AST printing" {
     var buffer: [512]u8 = undefined;

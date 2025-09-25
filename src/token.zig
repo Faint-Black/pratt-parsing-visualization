@@ -32,22 +32,14 @@ pub const Token = struct {
             };
         }
 
-        /// lbp only
-        pub fn leftBindingPower(self: TokenType) i32 {
+        /// left binding power only
+        pub fn lbp(self: TokenType) i32 {
             return self.bindingPower()[0];
         }
 
-        /// rbp only
-        pub fn rightBindingPower(self: TokenType) i32 {
+        /// right binding power only
+        pub fn rbp(self: TokenType) i32 {
             return self.bindingPower()[1];
-        }
-
-        /// 'L' for left leaning associativity (foo + bar, foo*, etc.)
-        /// 'R' for right leaning associativity (++foo, !foo, *foo, &foo, etc.)
-        pub fn associativity(self: TokenType) u8 {
-            return switch (self) {
-                else => 'L',
-            };
         }
     };
 
