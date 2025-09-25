@@ -6,6 +6,7 @@ const render = @import("render.zig");
 const lex = @import("lexer.zig").lex;
 const parse = @import("ast.zig");
 const Token = @import("token.zig").Token;
+const MeasureTree = @import("measure.zig").MeasuredAstNode;
 
 pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}).init;
@@ -57,7 +58,7 @@ pub fn main() !void {
             try render.updateParsedText(ast);
         }
 
-        try render.RenderAST.render(ast, font, gpa);
+        try MeasureTree.render(ast, font, 50, 150, gpa);
     }
 }
 
