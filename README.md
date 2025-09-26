@@ -14,7 +14,7 @@ zig build run
 ## Operators
 Currently, the following operators are available:
 
-* **Special**: `';'(end of statement)` `parentheses(for precedence forcing)`
+* **Special**: `';'(end of statement)` `parentheses(for precedence forcing)` `curly brackets(for expressions)`
 
 * **Assignment**: `'='(assignment)`
 
@@ -26,4 +26,6 @@ Currently, the following operators are available:
 
 `foo = 42;`
 
-`foo = bar = -(a + (42 * 1337));`
+`foo = bar = -(!a + (42 * 1337));`
+
+`{foo = 1; bar = 2; baz = foo + bar;};`

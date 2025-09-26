@@ -13,6 +13,7 @@ pub const ParsingState = struct {
         };
     }
 
+    /// return current token, then advance
     pub fn consume(self: *ParsingState) !Token {
         if (self.counter >= self.tokens.len) return error.OOB;
         const tmp = self.tokens[self.counter];
@@ -20,18 +21,26 @@ pub const ParsingState = struct {
         return tmp;
     }
 
+    /// return current token, without advancing
     pub fn peek(self: *ParsingState) !Token {
         if (self.counter >= self.tokens.len) return error.OOB;
         return self.tokens[self.counter];
     }
 
-    pub fn match(self: *ParsingState, expect: Token.TokenType) !void {
-        const next = try self.consume();
-        if (next.token_type != expect) return error.BadMatch;
+    /// returns true on bad match
+    pub fn match(self: *ParsingState, expect: Token.TokenType) !bool {
+        const next = try self.peek();
+        if (next.token_type != expect) return true else return false;
     }
 
+    /// increments token counter index
     pub fn advance(self: *ParsingState) void {
         self.counter += 1;
+    }
+
+    /// wrapper, purely for readibility purposes
+    pub fn skip(self: *ParsingState, _: Token.TokenType) void {
+        self.advance();
     }
 };
 
@@ -53,6 +62,8 @@ pub const AstNode = struct {
                 .literal_number => .literal,
                 .l_paren => .special,
                 .r_paren => .special,
+                .l_curly_bracket => .special,
+                .r_curly_bracket => .special,
                 .assignment => .binary_operation,
                 .sum => .binary_operation,
                 .subtraction => .binary_operation,
@@ -114,6 +125,8 @@ pub const AstNode = struct {
     }
 };
 
+/// main pratt parsing algorithm.
+/// red() function not needed due to binding power tuple
 pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
     var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
@@ -133,13 +146,22 @@ fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
     if (current_token_type == .l_paren) {
         result_node = try parseExpression(parse_state, 0);
         errdefer result_node.deinit(parse_state.allocator);
-        try parse_state.match(.r_paren);
+        if (try parse_state.match(.r_paren)) return error.BadMatch;
+        parse_state.skip(.r_paren);
+    } else if (current_token_type == .l_curly_bracket) {
+        result_node = try AstNode.init(current, parse_state.allocator);
+        errdefer result_node.deinit(parse_state.allocator);
+        while (try parse_state.match(.r_curly_bracket)) {
+            right = try parseExpression(parse_state, 0);
+            try result_node.addChildNode(right, parse_state.allocator);
+            parse_state.skip(.end_of_statement);
+        }
+        parse_state.skip(.r_curly_bracket);
     } else if (current_node_type == .unary_operation) {
         right = try parseExpression(parse_state, current.token_type.rbp());
         result_node = try AstNode.init(current, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
     } else {
-        // return current token as is
         result_node = try AstNode.init(current, parse_state.allocator);
     }
     return result_node;

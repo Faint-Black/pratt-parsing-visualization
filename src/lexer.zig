@@ -58,6 +58,8 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
             '=' => try token_vector.append(allocator, .initSpecial(.assignment)),
             '(' => try token_vector.append(allocator, .initSpecial(.l_paren)),
             ')' => try token_vector.append(allocator, .initSpecial(.r_paren)),
+            '{' => try token_vector.append(allocator, .initSpecial(.l_curly_bracket)),
+            '}' => try token_vector.append(allocator, .initSpecial(.r_curly_bracket)),
             '+' => try token_vector.append(allocator, .initSpecial(.sum)),
             '*' => try token_vector.append(allocator, .initSpecial(.multiplication)),
             '/' => try token_vector.append(allocator, .initSpecial(.division)),
