@@ -57,22 +57,11 @@ pub const AstNode = struct {
 
         pub fn fromTokenType(token_type: Token.TokenType) AstNodeType {
             return switch (token_type) {
-                .end_of_statement => .special,
+                .assignment, .sum, .subtraction, .multiplication, .division, .boolean_and, .boolean_or => .binary_operation,
+                .negation, .boolean_not => .unary_operation,
                 .identifier => .identifier,
                 .literal_number => .literal,
-                .l_paren => .special,
-                .r_paren => .special,
-                .l_curly_bracket => .special,
-                .r_curly_bracket => .special,
-                .assignment => .binary_operation,
-                .sum => .binary_operation,
-                .subtraction => .binary_operation,
-                .multiplication => .binary_operation,
-                .division => .binary_operation,
-                .negation => .unary_operation,
-                .boolean_and => .binary_operation,
-                .boolean_or => .binary_operation,
-                .boolean_not => .unary_operation,
+                .end_of_statement, .l_paren, .r_paren, .l_curly_bracket, .r_curly_bracket => .special,
             };
         }
     };
