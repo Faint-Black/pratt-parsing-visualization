@@ -10,3 +10,20 @@ Just **Zig 0.15.1**
 ```sh
 zig build run
 ```
+
+## Operators
+Currently, the following operators are available:
+
+* **Special**: `';'(end of statement)` `parentheses(for precedence forcing)`
+
+* **Assignment**: `'='(assignment)`
+
+* **Basic arithmetic**: `'+'(sum)` `'-'(subtraction)` `'-'(negation)` `'*'(multiplication)` `'/'(division)`
+
+* **Boolean logic**: `'and'(boolean and)` `'or'(boolean or)` `'!'(boolean not)`
+
+## Examples
+
+`foo = 42;`
+
+`foo = bar = -(a + (42 * 1337));`

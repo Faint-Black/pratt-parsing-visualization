@@ -61,6 +61,7 @@ pub const AstNode = struct {
                 .negation => .unary_operation,
                 .boolean_and => .binary_operation,
                 .boolean_or => .binary_operation,
+                .boolean_not => .unary_operation,
             };
         }
     };

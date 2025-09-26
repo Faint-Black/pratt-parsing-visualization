@@ -19,6 +19,7 @@ pub const Token = struct {
         negation,
         boolean_and,
         boolean_or,
+        boolean_not,
 
         /// {lbp, rbp}
         pub fn bindingPower(self: TokenType) struct { i32, i32 } {
@@ -27,7 +28,7 @@ pub const Token = struct {
                 .sum, .subtraction => .{ 10, 10 },
                 .boolean_and, .boolean_or => .{ 15, 15 },
                 .multiplication, .division => .{ 20, 20 },
-                .negation => .{ 0, 100 },
+                .negation, .boolean_not => .{ 0, 100 },
                 else => .{ 0, 0 },
             };
         }
@@ -112,6 +113,7 @@ pub const Token = struct {
             .negation => _ = try writer.write("NEGATION"),
             .boolean_and => _ = try writer.write("BOOL_AND"),
             .boolean_or => _ = try writer.write("BOOL_OR"),
+            .boolean_not => _ = try writer.write("BOOL_NOT"),
         }
     }
 
@@ -130,6 +132,7 @@ pub const Token = struct {
             .negation => try writer.writeByte('-'),
             .boolean_and => _ = try writer.write("&&"),
             .boolean_or => _ = try writer.write("||"),
+            .boolean_not => try writer.writeByte('!'),
         }
     }
 

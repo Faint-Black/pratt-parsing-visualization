@@ -61,6 +61,7 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
             '+' => try token_vector.append(allocator, .initSpecial(.sum)),
             '*' => try token_vector.append(allocator, .initSpecial(.multiplication)),
             '/' => try token_vector.append(allocator, .initSpecial(.division)),
+            '!' => try token_vector.append(allocator, .initSpecial(.boolean_not)),
             '-' => {
                 if (isWhitespace(next_c)) {
                     try token_vector.append(allocator, .initSpecial(.subtraction));
