@@ -48,7 +48,7 @@ pub const AstNode = struct {
 
         pub fn fromTokenType(token_type: Token.TokenType) AstNodeType {
             return switch (token_type) {
-                .end_of_line => .special,
+                .end_of_statement => .special,
                 .identifier => .identifier,
                 .literal_number => .literal,
                 .l_paren => .special,
@@ -186,7 +186,7 @@ test "parsing" {
         Token.initLiteral(2),
         Token.initSpecial(.multiplication),
         Token.initLiteral(3),
-        Token.initSpecial(.end_of_line),
+        Token.initSpecial(.end_of_statement),
     };
     defer for (tokens) |token| token.deinit(allocator);
 

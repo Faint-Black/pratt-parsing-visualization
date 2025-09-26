@@ -54,7 +54,7 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
         }
 
         switch (c) {
-            ';' => try token_vector.append(allocator, .initSpecial(.end_of_line)),
+            ';' => try token_vector.append(allocator, .initSpecial(.end_of_statement)),
             '=' => try token_vector.append(allocator, .initSpecial(.assignment)),
             '(' => try token_vector.append(allocator, .initSpecial(.l_paren)),
             ')' => try token_vector.append(allocator, .initSpecial(.r_paren)),
@@ -134,7 +134,7 @@ test "lexing" {
         Token.initSpecial(.negation),
         Token.initLiteral(1337),
         Token.initSpecial(.r_paren),
-        Token.initSpecial(.end_of_line),
+        Token.initSpecial(.end_of_statement),
     };
     defer for (expected_tokens) |token| token.deinit(allocator);
 

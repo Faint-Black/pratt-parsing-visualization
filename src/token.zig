@@ -6,7 +6,7 @@ pub const Token = struct {
     value: i32,
 
     pub const TokenType = enum {
-        end_of_line,
+        end_of_statement,
         identifier,
         literal_number,
         l_paren,
@@ -99,7 +99,7 @@ pub const Token = struct {
 
     pub fn fmtText(self: Token, writer: *std.Io.Writer) !void {
         switch (self.token_type) {
-            .end_of_line => _ = try writer.write("$"),
+            .end_of_statement => _ = try writer.write("$"),
             .identifier => _ = try writer.print("IDENTIFIER='{s}'", .{self.text.?}),
             .literal_number => _ = try writer.print("NUM={}", .{self.value}),
             .l_paren => _ = try writer.write("L_PAREN"),
@@ -117,7 +117,7 @@ pub const Token = struct {
 
     pub fn fmtSymbol(self: Token, writer: *std.Io.Writer) !void {
         switch (self.token_type) {
-            .end_of_line => try writer.writeByte('$'),
+            .end_of_statement => try writer.writeByte('$'),
             .identifier => _ = try writer.print("'{s}'", .{self.text.?}),
             .literal_number => _ = try writer.print("{}", .{self.value}),
             .l_paren => try writer.writeByte('('),
@@ -151,7 +151,7 @@ test "token formatting" {
         try Token.initIdentifier("foo", std.testing.allocator),
         Token.initSpecial(.assignment),
         Token.initLiteral(42),
-        Token.initSpecial(.end_of_line),
+        Token.initSpecial(.end_of_statement),
     };
     defer for (tokens) |token| token.deinit(std.testing.allocator);
     try Token.fmtArray(&tokens, &writer);

@@ -32,14 +32,8 @@ pub const MeasuredAstNode = struct {
         const x_int: i32 = @intFromFloat(self.x_render_pos);
         const y_int: i32 = @intFromFloat(self.y_render_pos);
         for (self.children) |child| {
-            const line_start = rl.Vector2{
-                .x = self.x_render_pos,
-                .y = self.y_render_pos,
-            };
-            const line_end = rl.Vector2{
-                .x = child.x_render_pos,
-                .y = child.y_render_pos,
-            };
+            const line_start = rl.Vector2{ .x = self.x_render_pos, .y = self.y_render_pos };
+            const line_end = rl.Vector2{ .x = child.x_render_pos, .y = child.y_render_pos };
             rl.drawLineEx(line_start, line_end, 3, .black);
             child.renderRecursive();
         }

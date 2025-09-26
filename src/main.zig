@@ -37,7 +37,7 @@ pub fn main() !void {
     defer fixed_allocator.free(font_path);
     const font = try rl.loadFont(font_path);
 
-    var ast: parse.AstNode = try .init(.initSpecial(.end_of_line), gpa);
+    var ast: parse.AstNode = try .init(.initSpecial(.end_of_statement), gpa);
     defer ast.deinit(gpa);
     while (!rl.windowShouldClose()) : ({
         render.frame_counter += 1;
@@ -49,16 +49,14 @@ pub fn main() !void {
         rl.clearBackground(.ray_white);
 
         render.renderParsedbox(font);
-        const textbox_contents = render.updateTextBox();
-        if (textbox_contents) |text| {
-            if (lexAndParse(text, gpa) catch null) |new_ast| {
-                ast.deinit(gpa);
-                ast = new_ast;
-            }
+        if (render.updateTextBox()) |text| {
+            const new_ast = lexAndParse(text, gpa) catch try parse.AstNode.init(.initSpecial(.end_of_statement), gpa);
+            ast.deinit(gpa);
+            ast = new_ast;
             try render.updateParsedText(ast);
         }
 
-        try MeasureTree.render(ast, font, 50, 150, gpa);
+        try MeasureTree.render(ast, font, 20, 150, gpa);
     }
 }
 
