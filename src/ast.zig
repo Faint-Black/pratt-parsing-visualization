@@ -117,11 +117,14 @@ pub const AstNode = struct {
     }
 
     pub fn fmtLisp(self: AstNode, writer: *std.Io.Writer) !void {
-        try writer.writeByte('(');
+        const single = (self.children.len == 0);
+        if (!single) try writer.writeByte('(');
         try self.token.fmtSymbol(writer);
-        if (self.children.len > 0) try writer.writeByte(' ');
-        for (self.children) |child| try child.fmtLisp(writer);
-        try writer.writeByte(')');
+        for (self.children) |child| {
+            try writer.writeByte(' ');
+            try child.fmtLisp(writer);
+        }
+        if (!single) try writer.writeByte(')');
     }
 };
 
@@ -192,7 +195,7 @@ test "AST printing" {
     try root_node.addChildToken(foo_token, allocator);
     try root_node.addChildToken(.initLiteral(42), allocator);
     try root_node.fmtLisp(&writer);
-    try std.testing.expectEqualStrings("(= ('foo')(42))", writer.buffered());
+    try std.testing.expectEqualStrings("(= 'foo' 42)", writer.buffered());
 }
 
 test "parsing" {
@@ -218,5 +221,5 @@ test "parsing" {
     defer ast.deinit(allocator);
 
     try ast.fmtLisp(&writer);
-    try std.testing.expectEqualStrings("(= ('foo')(+ (1)(* (2)(3))))", writer.buffered());
+    try std.testing.expectEqualStrings("(= 'foo' (+ 1 (* 2 3)))", writer.buffered());
 }
