@@ -70,7 +70,5 @@ pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode
 }
 
 test "test index" {
-    _ = @import("lexer.zig");
-    _ = @import("token.zig");
-    _ = @import("ast.zig");
+    _ = std.testing.refAllDecls(@This());
 }

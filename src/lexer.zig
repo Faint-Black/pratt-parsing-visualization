@@ -18,13 +18,18 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
     var number_building_mode: bool = false;
     var request_buffer_flush: bool = false;
 
+    var previous_c: u8 = undefined;
     var c: u8 = undefined;
     var next_c: u8 = undefined;
+    var nextnext_c: u8 = undefined;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {
-        c = text[i];
-        if (c == 0) break;
+        if (text[i] == 0) break;
+
+        previous_c = peekPreviousChar(text, i);
+        c = peekCurrentChar(text, i);
         next_c = peekNextChar(text, i);
+        nextnext_c = peekNextNextChar(text, i);
 
         if (number_building_mode and !isNumberChar(c)) request_buffer_flush = true;
         if (string_building_mode and !isNormalChar(c)) request_buffer_flush = true;
@@ -60,15 +65,37 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
             ')' => try token_vector.append(allocator, .initSpecial(.r_paren)),
             '{' => try token_vector.append(allocator, .initSpecial(.l_curly_bracket)),
             '}' => try token_vector.append(allocator, .initSpecial(.r_curly_bracket)),
-            '+' => try token_vector.append(allocator, .initSpecial(.sum)),
             '*' => try token_vector.append(allocator, .initSpecial(.multiplication)),
             '/' => try token_vector.append(allocator, .initSpecial(.division)),
             '!' => try token_vector.append(allocator, .initSpecial(.boolean_not)),
-            '-' => {
-                if (isWhitespace(next_c)) {
-                    try token_vector.append(allocator, .initSpecial(.subtraction));
+            '+' => {
+                if (next_c == '+') {
+                    if (isNormalChar(previous_c)) {
+                        try token_vector.append(allocator, .initSpecial(.post_increment));
+                        i += 1;
+                    }
+                    if (isNormalChar(nextnext_c)) {
+                        try token_vector.append(allocator, .initSpecial(.pre_increment));
+                        i += 1;
+                    }
                 } else {
+                    try token_vector.append(allocator, .initSpecial(.sum));
+                }
+            },
+            '-' => {
+                if (next_c == '-') {
+                    if (isNormalChar(previous_c)) {
+                        try token_vector.append(allocator, .initSpecial(.post_decrement));
+                        i += 1;
+                    }
+                    if (isNormalChar(nextnext_c)) {
+                        try token_vector.append(allocator, .initSpecial(.pre_decrement));
+                        i += 1;
+                    }
+                } else if (!isWhitespace(next_c)) {
                     try token_vector.append(allocator, .initSpecial(.negation));
+                } else {
+                    try token_vector.append(allocator, .initSpecial(.subtraction));
                 }
             },
             else => {},
@@ -78,10 +105,20 @@ pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
     return token_vector.toOwnedSlice(allocator);
 }
 
-/// where 'i' is the index of the current character in use
-/// returns a newline character on fail, simulating an EOF
+fn peekPreviousChar(str: []const u8, i: usize) u8 {
+    if (i == 0) return '\n' else return str[i - 1];
+}
+
+fn peekCurrentChar(str: []const u8, i: usize) u8 {
+    return str[i];
+}
+
 fn peekNextChar(str: []const u8, i: usize) u8 {
     if ((i + 1) >= str.len) return '\n' else return str[i + 1];
+}
+
+fn peekNextNextChar(str: []const u8, i: usize) u8 {
+    if ((i + 2) >= str.len) return '\n' else return str[i + 2];
 }
 
 /// identifies start of possible identifier name
@@ -149,6 +186,35 @@ test "lexing" {
     try Token.fmtArray(lexed, &writer);
     try std.testing.expectEqualStrings(expected_text, writer.buffered());
     // token eql testing
+    for (expected_tokens, lexed) |expected, got| {
+        try std.testing.expect(Token.eql(expected, got));
+    }
+}
+
+test "incrementing and decrementing" {
+    const allocator = std.testing.allocator;
+
+    const input = "--foo - bar-- + ++baz + qux++;";
+    const expected_tokens = [_]Token{
+        Token.initSpecial(.pre_decrement),
+        try Token.initIdentifier("foo", allocator),
+        Token.initSpecial(.subtraction),
+        try Token.initIdentifier("bar", allocator),
+        Token.initSpecial(.post_decrement),
+        Token.initSpecial(.sum),
+        Token.initSpecial(.pre_increment),
+        try Token.initIdentifier("baz", allocator),
+        Token.initSpecial(.sum),
+        try Token.initIdentifier("qux", allocator),
+        Token.initSpecial(.post_increment),
+        Token.initSpecial(.end_of_statement),
+    };
+    defer for (expected_tokens) |token| token.deinit(allocator);
+
+    const lexed = try lex(input, allocator);
+    defer allocator.free(lexed);
+    defer for (lexed) |token| token.deinit(allocator);
+
     for (expected_tokens, lexed) |expected, got| {
         try std.testing.expect(Token.eql(expected, got));
     }

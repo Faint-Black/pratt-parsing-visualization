@@ -22,6 +22,10 @@ pub const Token = struct {
         boolean_and,
         boolean_or,
         boolean_not,
+        pre_increment,
+        post_increment,
+        pre_decrement,
+        post_decrement,
 
         /// {lbp, rbp}
         pub fn bindingPower(self: TokenType) struct { i32, i32 } {
@@ -30,7 +34,8 @@ pub const Token = struct {
                 .sum, .subtraction => .{ 10, 10 },
                 .boolean_and, .boolean_or => .{ 15, 15 },
                 .multiplication, .division => .{ 20, 20 },
-                .negation, .boolean_not => .{ 0, 100 },
+                .negation, .boolean_not, .pre_increment, .pre_decrement => .{ 0, 100 },
+                .post_increment, .post_decrement => .{ 100, 0 },
                 else => .{ 0, 0 },
             };
         }
@@ -118,6 +123,10 @@ pub const Token = struct {
             .boolean_and => _ = try writer.write("BOOL_AND"),
             .boolean_or => _ = try writer.write("BOOL_OR"),
             .boolean_not => _ = try writer.write("BOOL_NOT"),
+            .pre_increment => _ = try writer.write("PRE_INC"),
+            .post_increment => _ = try writer.write("POST_INC"),
+            .pre_decrement => _ = try writer.write("PRE_DEC"),
+            .post_decrement => _ = try writer.write("POST_DEC"),
         }
     }
 
@@ -139,6 +148,10 @@ pub const Token = struct {
             .boolean_and => _ = try writer.write("&&"),
             .boolean_or => _ = try writer.write("||"),
             .boolean_not => try writer.writeByte('!'),
+            .pre_increment => _ = try writer.write("++"),
+            .post_increment => _ = try writer.write("++"),
+            .pre_decrement => _ = try writer.write("--"),
+            .post_decrement => _ = try writer.write("--"),
         }
     }
 

@@ -20,6 +20,8 @@ Currently, the following operators are available:
 
 * **Basic arithmetic**: `'+' (sum)` `'-' (subtraction)` `'-' (negation)` `'*' (multiplication)` `'/' (division)`
 
+* **Increment and Decrement**: `'++' (pre-increment)` `'++' (post-increment)` `'--' (pre-decrement)` `'--' (post-decrement)`
+
 * **Boolean logic**: `'and' (boolean and)` `'or' (boolean or)` `'!' (boolean not)`
 
 ## Examples

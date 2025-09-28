@@ -62,8 +62,9 @@ pub fn updateParsedText(ast: parse.AstNode) !void {
 
 pub fn tokenColor(token_type: Token.TokenType) rl.Color {
     return switch (parse.AstNode.AstNodeType.fromTokenType(token_type)) {
-        .unary_operation => .pink,
-        .binary_operation => .purple,
+        .prefix_operation => .pink,
+        .infix_operation => .purple,
+        .postfix_operation => .magenta,
         .identifier => .blue,
         .literal => .sky_blue,
         .special => .white,

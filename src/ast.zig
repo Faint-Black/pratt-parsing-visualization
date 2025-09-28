@@ -49,16 +49,22 @@ pub const AstNode = struct {
     children: []AstNode,
 
     pub const AstNodeType = enum {
-        binary_operation,
-        unary_operation,
+        /// a + b
+        infix_operation,
+        /// ++a
+        prefix_operation,
+        /// a++
+        postfix_operation,
+
         identifier,
         literal,
         special,
 
         pub fn fromTokenType(token_type: Token.TokenType) AstNodeType {
             return switch (token_type) {
-                .assignment, .sum, .subtraction, .multiplication, .division, .boolean_and, .boolean_or => .binary_operation,
-                .negation, .boolean_not => .unary_operation,
+                .assignment, .sum, .subtraction, .multiplication, .division, .boolean_and, .boolean_or => .infix_operation,
+                .negation, .boolean_not, .pre_increment, .pre_decrement => .prefix_operation,
+                .post_increment, .post_decrement => .postfix_operation,
                 .identifier => .identifier,
                 .literal_number => .literal,
                 .end_of_statement, .l_paren, .r_paren, .l_curly_bracket, .r_curly_bracket => .special,
@@ -149,7 +155,7 @@ fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
             parse_state.skip(.end_of_statement);
         }
         parse_state.skip(.r_curly_bracket);
-    } else if (current_node_type == .unary_operation) {
+    } else if (current_node_type == .prefix_operation) {
         right = try parseExpression(parse_state, current.token_type.rbp());
         result_node = try AstNode.init(current, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
@@ -163,11 +169,14 @@ fn led(parse_state: *ParsingState, current: Token, left: AstNode) anyerror!AstNo
     const current_node_type = AstNode.AstNodeType.fromTokenType(current.token_type);
     var result_node: AstNode = undefined;
     var right: AstNode = undefined;
-    if (current_node_type == .binary_operation) {
+    if (current_node_type == .infix_operation) {
         result_node = try AstNode.init(current, parse_state.allocator);
         right = try parseExpression(parse_state, current.token_type.rbp());
         try result_node.addChildNode(left, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
+    } else if (current_node_type == .postfix_operation) {
+        result_node = try AstNode.init(current, parse_state.allocator);
+        try result_node.addChildNode(left, parse_state.allocator);
     }
     return result_node;
 }
@@ -211,4 +220,30 @@ test "parsing" {
 
     try ast.fmtLisp(&writer);
     try std.testing.expectEqualStrings("(= 'foo' (+ 1 (* 2 3)))", writer.buffered());
+}
+
+test "increment and decrement" {
+    var buffer: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buffer);
+    const allocator = std.testing.allocator;
+
+    // A = --B - C--;
+    const tokens = [_]Token{
+        try Token.initIdentifier("A", allocator),
+        Token.initSpecial(.assignment),
+        Token.initSpecial(.pre_decrement),
+        try Token.initIdentifier("B", allocator),
+        Token.initSpecial(.subtraction),
+        try Token.initIdentifier("C", allocator),
+        Token.initSpecial(.post_decrement),
+        Token.initSpecial(.end_of_statement),
+    };
+    defer for (tokens) |token| token.deinit(allocator);
+
+    var state = ParsingState{ .allocator = allocator, .counter = 0, .tokens = &tokens };
+    const ast = try parseExpression(&state, 0);
+    defer ast.deinit(allocator);
+
+    try ast.fmtLisp(&writer);
+    try std.testing.expectEqualStrings("(= 'A' (- (-- 'B') (-- 'C')))", writer.buffered());
 }
