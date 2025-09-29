@@ -50,10 +50,14 @@ pub fn main() !void {
 
         render.renderParsedbox(font);
         if (render.updateTextBox()) |text| {
-            const new_ast = lexAndParse(text, gpa) catch try parse.AstNode.init(.initSpecial(.end_of_statement), gpa);
+            var err_message: ?[]const u8 = null;
+            const new_ast = lexAndParse(text, gpa) catch |err| blk: {
+                err_message = @errorName(err);
+                break :blk try parse.AstNode.init(.initSpecial(.end_of_statement), gpa);
+            };
             ast.deinit(gpa);
             ast = new_ast;
-            try render.updateParsedText(ast);
+            try render.updateParsedText(ast, err_message);
         }
 
         try MeasureTree.render(ast, font, 20, 150, gpa);

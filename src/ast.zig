@@ -1,6 +1,29 @@
 const std = @import("std");
 const Token = @import("token.zig").Token;
 
+/// {lbp, rbp}
+pub fn bindingPower(token_type: Token.TokenType) struct { i32, i32 } {
+    return switch (token_type) {
+        .assignment => .{ 5, 4 },
+        .sum, .subtraction => .{ 10, 10 },
+        .boolean_and, .boolean_or => .{ 15, 15 },
+        .multiplication, .division => .{ 20, 20 },
+        .negation, .boolean_not, .pre_increment, .pre_decrement => .{ 0, 100 },
+        .post_increment, .post_decrement => .{ 100, 0 },
+        else => .{ 0, 0 },
+    };
+}
+
+/// left binding power only
+pub fn leftBindingPower(token_type: Token.TokenType) i32 {
+    return bindingPower(token_type)[0];
+}
+
+/// right binding power only
+pub fn rightBindingPower(token_type: Token.TokenType) i32 {
+    return bindingPower(token_type)[1];
+}
+
 pub const ParsingState = struct {
     tokens: []const Token,
     counter: usize = 0,
@@ -15,7 +38,7 @@ pub const ParsingState = struct {
 
     /// return current token, then advance
     pub fn consume(self: *ParsingState) !Token {
-        if (self.counter >= self.tokens.len) return error.OOB;
+        if (self.counter >= self.tokens.len) return error.ConsumeEmptyToken;
         const tmp = self.tokens[self.counter];
         self.advance();
         return tmp;
@@ -23,7 +46,7 @@ pub const ParsingState = struct {
 
     /// return current token, without advancing
     pub fn peek(self: *ParsingState) !Token {
-        if (self.counter >= self.tokens.len) return error.OOB;
+        if (self.counter >= self.tokens.len) return error.PeekedEmptyToken;
         return self.tokens[self.counter];
     }
 
@@ -129,7 +152,7 @@ pub fn parseExpression(parse_state: *ParsingState, rbp: i32) anyerror!AstNode {
     var current_token = try parse_state.consume();
     var left_node = try nud(parse_state, current_token);
     errdefer left_node.deinit(parse_state.allocator);
-    while (rbp < (try parse_state.peek()).token_type.lbp()) {
+    while (rbp < leftBindingPower((try parse_state.peek()).token_type)) {
         current_token = try parse_state.consume();
         left_node = try led(parse_state, current_token, left_node);
     }
@@ -156,7 +179,7 @@ fn nud(parse_state: *ParsingState, current: Token) anyerror!AstNode {
         }
         parse_state.skip(.r_curly_bracket);
     } else if (current_node_type == .prefix_operation) {
-        right = try parseExpression(parse_state, current.token_type.rbp());
+        right = try parseExpression(parse_state, rightBindingPower(current.token_type));
         result_node = try AstNode.init(current, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
     } else {
@@ -171,7 +194,7 @@ fn led(parse_state: *ParsingState, current: Token, left: AstNode) anyerror!AstNo
     var right: AstNode = undefined;
     if (current_node_type == .infix_operation) {
         result_node = try AstNode.init(current, parse_state.allocator);
-        right = try parseExpression(parse_state, current.token_type.rbp());
+        right = try parseExpression(parse_state, rightBindingPower(current.token_type));
         try result_node.addChildNode(left, parse_state.allocator);
         try result_node.addChildNode(right, parse_state.allocator);
     } else if (current_node_type == .postfix_operation) {
@@ -214,7 +237,7 @@ test "parsing" {
     };
     defer for (tokens) |token| token.deinit(allocator);
 
-    var state = ParsingState{ .allocator = allocator, .counter = 0, .tokens = &tokens };
+    var state = ParsingState{ .allocator = allocator, .tokens = &tokens };
     const ast = try parseExpression(&state, 0);
     defer ast.deinit(allocator);
 

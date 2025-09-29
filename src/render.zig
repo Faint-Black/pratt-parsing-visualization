@@ -51,9 +51,14 @@ pub fn updateTextBox() ?[]const u8 {
     }
 }
 
-pub fn updateParsedText(ast: parse.AstNode) !void {
+pub fn updateParsedText(ast: parse.AstNode, err_msg: ?[]const u8) !void {
     var writer = std.Io.Writer.fixed(&parsedbox_text_buffer);
-    try ast.fmtLisp(&writer);
+    if (err_msg) |msg| {
+        _ = try writer.write("ERROR: ");
+        _ = try writer.write(msg);
+    } else {
+        try ast.fmtLisp(&writer);
+    }
     try writer.writeByte(0);
     const writer_slice = writer.buffered();
     const sentinel_pos = std.mem.indexOfSentinel(u8, 0, @ptrCast(writer_slice.ptr));

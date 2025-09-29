@@ -26,29 +26,6 @@ pub const Token = struct {
         post_increment,
         pre_decrement,
         post_decrement,
-
-        /// {lbp, rbp}
-        pub fn bindingPower(self: TokenType) struct { i32, i32 } {
-            return switch (self) {
-                .assignment => .{ 5, 4 },
-                .sum, .subtraction => .{ 10, 10 },
-                .boolean_and, .boolean_or => .{ 15, 15 },
-                .multiplication, .division => .{ 20, 20 },
-                .negation, .boolean_not, .pre_increment, .pre_decrement => .{ 0, 100 },
-                .post_increment, .post_decrement => .{ 100, 0 },
-                else => .{ 0, 0 },
-            };
-        }
-
-        /// left binding power only
-        pub fn lbp(self: TokenType) i32 {
-            return self.bindingPower()[0];
-        }
-
-        /// right binding power only
-        pub fn rbp(self: TokenType) i32 {
-            return self.bindingPower()[1];
-        }
     };
 
     pub fn deinit(self: Token, allocator: std.mem.Allocator) void {
