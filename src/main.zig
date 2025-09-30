@@ -8,7 +8,8 @@ const parse = @import("ast.zig");
 const Token = @import("token.zig").Token;
 const MeasureTree = @import("measure.zig").MeasuredAstNode;
 
-const font_filepath = "/../../data/LiberationMono-Bold.ttf";
+const data_dir_relative_to_bin = "/../../data/";
+const font_filepath = data_dir_relative_to_bin ++ "LiberationMono-Bold.ttf";
 
 pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}).init;
@@ -76,5 +77,13 @@ fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode {
 }
 
 test "test index" {
+    comptime {
+        _ = @import("ast.zig");
+        _ = @import("lexer.zig");
+        _ = @import("main.zig");
+        _ = @import("measure.zig");
+        _ = @import("render.zig");
+        _ = @import("token.zig");
+    }
     _ = std.testing.refAllDecls(@This());
 }

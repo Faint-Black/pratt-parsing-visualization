@@ -2,7 +2,7 @@ const std = @import("std");
 const Token = @import("token.zig").Token;
 const h = std.hash.Fnv1a_32.hash;
 
-/// returns an array of tokens from lexed text
+/// Turns raw text into array of tokens
 pub fn lex(text: []const u8, allocator: std.mem.Allocator) ![]Token {
     var buffer: [512]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
