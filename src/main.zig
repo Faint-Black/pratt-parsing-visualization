@@ -8,6 +8,8 @@ const parse = @import("ast.zig");
 const Token = @import("token.zig").Token;
 const MeasureTree = @import("measure.zig").MeasuredAstNode;
 
+const font_filepath = "/../../data/LiberationMono-Bold.ttf";
+
 pub fn main() !void {
     var debug_allocator = std.heap.DebugAllocator(.{}).init;
     const gpa, const is_debug_alloc = switch (builtin.mode) {
@@ -28,15 +30,7 @@ pub fn main() !void {
     rl.setWindowState(.{ .window_resizable = true });
     rl.setTargetFPS(render.frames_per_second);
 
-    const bin_path = try std.fs.selfExeDirPathAlloc(fixed_allocator);
-    defer fixed_allocator.free(bin_path);
-    const font_path = try std.mem.concatWithSentinel(fixed_allocator, u8, &.{
-        bin_path,
-        "/../../data/LiberationMono-Bold.ttf",
-    }, 0);
-    defer fixed_allocator.free(font_path);
-    const font = try rl.loadFont(font_path);
-
+    const font = try loadFont(fixed_allocator);
     var ast: parse.AstNode = try .init(.initSpecial(.end_of_statement), gpa);
     defer ast.deinit(gpa);
     while (!rl.windowShouldClose()) : ({
@@ -64,7 +58,15 @@ pub fn main() !void {
     }
 }
 
-pub fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode {
+fn loadFont(allocator: std.mem.Allocator) !rl.Font {
+    const bin_path = try std.fs.selfExeDirPathAlloc(allocator);
+    defer allocator.free(bin_path);
+    const font_path = try std.mem.concatWithSentinel(allocator, u8, &.{ bin_path, font_filepath }, 0);
+    defer allocator.free(font_path);
+    return try rl.loadFont(font_path);
+}
+
+fn lexAndParse(str: []const u8, allocator: std.mem.Allocator) !parse.AstNode {
     const tokens: []Token = try lex(str, allocator);
     defer allocator.free(tokens);
     defer for (tokens) |token| token.deinit(allocator);

@@ -1,7 +1,15 @@
-# Pratt Parsing Visualization
-Visualizing the pratt parsing abstract syntax tree generation in real time with a GUI.
+<div align=center>
+  <picture>
+    <img src="./data/demo.png" alt="Demo">
+  </picture>
+  <h2>Pratt Parsing Visualization</h2>
 
-Powered by Zig + Raylib.
+  Visualizing the pratt parsing abstract syntax tree generation in real time with a colorful GUI.
+
+  Powered by Zig + Raylib.
+</div>
+
+---
 
 ## Dependencies
 * *Zig 0.15.1*
@@ -10,6 +18,13 @@ Powered by Zig + Raylib.
 ```sh
 zig build run
 ```
+
+## Limitations
+This is only a small demonstration of the Pratt Parsing algorithm, only the bare minimum will be included to achieve the educational purposes of the program.
+
+* No floating point
+* No ternaries (subject to change)
+* No memory operators (like pointers, referencing and dereferencing, etc.)
 
 ## Operators
 Currently, the following operators are available:
@@ -25,6 +40,8 @@ Currently, the following operators are available:
 * **Boolean logic**: `'and' (boolean and)` `'or' (boolean or)` `'!' (boolean not)`
 
 ## Examples
+Type these in the Text box, and don't forget the closing semicolon:
+
 `foo = 42;`
 
 `foo = bar = -(!a + (42 * 1337));`
